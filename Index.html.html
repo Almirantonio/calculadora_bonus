@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Bonificação — Consultor</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0d14; --surface:#111520; --surface2:#171c2e; --border:#1e2540;
+    --accent:#00e5a0; --accent2:#00b8ff; --warn:#ffb800; --danger:#ff4757;
+    --text:#e8ecf4; --muted:#7a86a6;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    min-height:100vh; line-height:1.45;
+  }
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,229,160,0.03) 1px,transparent 1px);
+    background-size:40px 40px;
+  }
+  .wrap { position:relative; z-index:1; max-width:980px; margin:0 auto; padding:28px 18px 60px; }
+  h1,h2,.display { font-family:'Syne',system-ui,sans-serif; }
+
+  /* header */
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:22px; }
+  .top h1 { font-size:1.6rem; font-weight:800; letter-spacing:-0.01em; }
+  .top p { color:var(--muted); font-size:0.9rem; margin-top:4px; max-width:560px; }
+  .btn {
+    background:transparent; color:var(--muted); border:1px solid var(--border);
+    border-radius:8px; padding:8px 14px; font:inherit; font-size:0.85rem; cursor:pointer;
+  }
+  .btn:hover { color:var(--text); border-color:var(--muted); }
+  :focus-visible { outline:2px solid var(--accent2); outline-offset:2px; }
+
+  /* sellers */
+  .sellers {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 18px; margin-bottom:16px;
+  }
+  .sellers label { font-weight:500; }
+  .sellers small { color:var(--muted); display:block; font-size:0.78rem; }
+  .sellers .faixa { margin-left:auto; color:var(--accent2); font-weight:700; font-size:0.9rem; }
+
+  /* inputs */
+  .field { display:flex; align-items:stretch; }
+  .field input {
+    width:120px; background:var(--surface2); color:var(--text);
+    border:1px solid var(--border); border-radius:8px; padding:10px 12px;
+    font:inherit; font-size:1.05rem; font-weight:700; text-align:right;
+  }
+  .field input:focus { outline:none; border-color:var(--accent2); }
+  .field .unit { align-self:center; margin-left:8px; color:var(--muted); font-size:0.9rem; min-width:16px; }
+  .field .sign {
+    margin-right:6px; background:var(--surface2); color:var(--muted); border:1px solid var(--border);
+    border-radius:8px; padding:0 12px; font:inherit; font-size:1rem; cursor:pointer;
+  }
+  .field .sign:hover { color:var(--text); }
+
+  .fields2 { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+  .fields2 label { display:flex; flex-direction:column; gap:4px; font-size:0.76rem; color:var(--muted); }
+  .fields2 input {
+    width:110px; background:var(--surface2); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:9px 10px; font:inherit; font-size:1.05rem; font-weight:700; text-align:right;
+  }
+  .fields2 input:focus { outline:none; border-color:var(--accent2); }
+
+  /* status */
+  .status {
+    border-radius:16px; padding:22px; margin-bottom:16px; border:1px solid var(--border);
+    background:var(--surface); display:grid; grid-template-columns:1.25fr 1fr; gap:22px;
+  }
+  .status.ok    { border-color:rgba(0,229,160,0.5);  background:linear-gradient(135deg,rgba(0,229,160,0.10),var(--surface) 60%); }
+  .status.near  { border-color:rgba(255,184,0,0.5);  background:linear-gradient(135deg,rgba(255,184,0,0.10),var(--surface) 60%); }
+  .status.mid   { border-color:rgba(251,146,60,0.5); background:linear-gradient(135deg,rgba(251,146,60,0.10),var(--surface) 60%); }
+  .status.far   { border-color:rgba(255,71,87,0.5);  background:linear-gradient(135deg,rgba(255,71,87,0.10),var(--surface) 60%); }
+  .status .verdict { font-family:'Syne',sans-serif; font-size:1.7rem; font-weight:800; line-height:1.1; }
+  .status.ok .verdict   { color:var(--accent); }
+  .status.near .verdict { color:var(--warn); }
+  .status.mid .verdict  { color:#fb923c; }
+  .status.far .verdict  { color:var(--danger); }
+  .status .why { margin-top:10px; font-size:0.95rem; }
+  .status .why + .why { color:var(--muted); font-size:0.88rem; margin-top:6px; }
+  .money { text-align:right; }
+  .money .lbl { color:var(--muted); font-size:0.82rem; }
+  .money .val { font-family:'Syne',sans-serif; font-size:2.3rem; font-weight:800; line-height:1.1; }
+  .money .sub { color:var(--muted); font-size:0.82rem; margin-top:4px; }
+
+  /* blocks summary */
+  .blocks { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:26px; }
+  .bsum { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 18px; }
+  .bsum .row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .bsum .name { font-weight:500; }
+  .bsum .pts { font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; }
+  .bsum .need { color:var(--muted); font-size:0.82rem; margin-top:6px; }
+  .track { position:relative; height:8px; background:var(--surface2); border-radius:99px; margin-top:10px; overflow:visible; }
+  .track .fill { height:100%; border-radius:99px; transition:width .3s, background .3s; }
+  .track .mark { position:absolute; top:-4px; width:2px; height:16px; background:var(--text); opacity:.6; }
+
+  /* kpi cards */
+  h2.sec { font-size:1.05rem; font-weight:700; margin:6px 0 4px; }
+  .sec-sub { color:var(--muted); font-size:0.85rem; margin-bottom:12px; }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:28px; }
+  .kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .kpi .head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+  .kpi .title { font-weight:700; }
+  .kpi .title small { display:block; color:var(--muted); font-weight:400; font-size:0.78rem; }
+  .chips { display:grid; grid-template-columns:repeat(auto-fit,minmax(70px,1fr)); gap:6px; margin:14px 0 12px; }
+  .chip {
+    border:1px solid var(--border); border-radius:8px; padding:6px 4px; text-align:center;
+    background:var(--surface2); opacity:.55; transition:opacity .2s, background .2s;
+  }
+  .chip b { display:block; font-size:0.72rem; }
+  .chip span { display:block; font-size:0.72rem; color:var(--muted); }
+  .chip.on { opacity:1; }
+  .next { font-size:0.85rem; }
+  .next .tag { display:inline-block; margin-top:6px; font-size:0.78rem; font-weight:700; color:var(--accent); }
+  .next .done { color:var(--accent); font-weight:700; }
+  .next .empty { color:var(--muted); }
+
+  /* bonus table */
+  table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+  th, td { padding:10px 8px; text-align:center; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:500; font-size:0.8rem; }
+  td:first-child, th:first-child { text-align:left; }
+  tr.mine td:first-child { color:var(--accent2); font-weight:700; }
+  tr.mine td { background:rgba(0,184,255,0.05); }
+  td.now { background:rgba(0,229,160,0.2) !important; color:var(--accent); font-weight:800; outline:2px solid var(--accent); outline-offset:-2px; }
+  td.nxt { outline:2px dashed var(--warn); outline-offset:-2px; color:var(--warn); font-weight:700; }
+  .tablebox { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:6px 12px; overflow-x:auto; }
+  .legend { color:var(--muted); font-size:0.8rem; margin:8px 2px 0; }
+  .rules { margin-top:26px; color:var(--muted); font-size:0.82rem; border-top:1px solid var(--border); padding-top:14px; }
+  .rules li { margin:4px 0 4px 18px; }
+
+  @media (max-width:720px) {
+    .status { grid-template-columns:1fr; }
+    .money { text-align:left; }
+    .blocks, .kpis { grid-template-columns:1fr; }
+    .sellers .faixa { margin-left:0; width:100%; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <h1>Simulador de bonificação</h1>
+      <p>Digite os valores atuais de cada indicador e veja na hora se você está longe ou perto do bônus. Nada é enviado nem salvo fora do seu aparelho.</p>
+    </div>
+    <button class="btn" id="btnClear" type="button">Limpar valores</button>
+  </div>
+
+  <div class="sellers">
+    <div>
+      <label for="sellers">Sellers ativos na sua carteira</label>
+      <small>Define a faixa da tabela de bônus (de 101 a 500)</small>
+    </div>
+    <div class="field"><input id="sellers" type="text" inputmode="numeric" placeholder="ex: 250" autocomplete="off"></div>
+    <div class="faixa" id="faixaTxt"></div>
+  </div>
+
+  <div class="status" id="status">
+    <div>
+      <div class="verdict" id="verdict">Preencha os indicadores</div>
+      <div class="why" id="why1">Digite os valores abaixo para simular o seu bônus.</div>
+      <div class="why" id="why2"></div>
+    </div>
+    <div class="money">
+      <div class="lbl">Bônus estimado</div>
+      <div class="val" id="bonusVal">—</div>
+      <div class="sub" id="totalTxt"></div>
+    </div>
+  </div>
+
+  <div class="blocks">
+    <div class="bsum">
+      <div class="row"><span class="name">Bloco 1 · Atuação</span><span class="pts" id="b1pts">0,0 / 3,0</span></div>
+      <div class="track"><div class="fill" id="b1fill" style="width:0"></div></div>
+      <div class="need" id="b1need"></div>
+    </div>
+    <div class="bsum">
+      <div class="row"><span class="name">Bloco 2 · Performance</span><span class="pts" id="b2pts">0,0 / 7,0</span></div>
+      <div class="track"><div class="fill" id="b2fill" style="width:0"></div><div class="mark" style="left:78.57%" title="Mínimo de 5,5 pts"></div></div>
+      <div class="need" id="b2need"></div>
+    </div>
+  </div>
+
+  <h2 class="sec">Bloco 1 · Atuação</h2>
+  <p class="sec-sub">Precisa somar 3,0 pontos para liberar o bônus.</p>
+  <div class="kpis" id="kpis1"></div>
+
+  <h2 class="sec">Bloco 2 · Performance</h2>
+  <p class="sec-sub">Precisa somar pelo menos 5,5 pontos. Quanto mais pontos, maior o bônus.</p>
+  <div class="kpis" id="kpis2"></div>
+
+  <h2 class="sec">Tabela de bônus</h2>
+  <p class="sec-sub">Valores pagos conforme sua faixa de sellers e a pontuação do Bloco 2.</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>Sellers ativos</th><th>5,5 a 5,99</th><th>6,0 a 6,49</th><th>6,5 a 6,99</th><th>7,0</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <p class="legend">Verde: onde você está agora. Tracejado amarelo: próxima faixa a alcançar.</p>
+
+  <h2 class="sec" style="margin-top:28px">Meta de pesquisas (Awareness)</h2>
+  <p class="sec-sub">Quantidade de pesquisas em sellers ativos para atingir a meta, conforme a sua carteira.</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>Sellers ativos</th><th>Pesquisas necessárias</th></tr></thead>
+      <tbody id="tbodyMeta"></tbody>
+    </table>
+  </div>
+
+  <ul class="rules">
+    <li>Awareness: se as pesquisas realizadas atingirem a meta da sua faixa de sellers, vale 1,5 pt; abaixo da meta, 0 pt.</li>
+    <li>O Bloco 1 vale no máximo 3,0 pontos, então para ficar elegível os três indicadores dele precisam estar no Tier 1.</li>
+    <li>Sem o Bloco 1 completo, nenhum bônus é pago, mesmo com o Bloco 2 no máximo.</li>
+    <li>Net Churn é negativo: quanto mais perto de zero, melhor (−2% é melhor que −4%). Use o botão ± para trocar o sinal.</li>
+    <li>Regras e metas de Setembro/2026. Este simulador é uma estimativa; o valor oficial é o do fechamento.</li>
+  </ul>
+</div>
+
+<script>
+// ───────── REGRAS (extraídas do dashboard de remuneração · Set/2026) ─────────
+const BASE = 3000;
+const COLORS = ['#00e5a0','#00b8ff','#a78bfa','#ffb800','#fb923c','#ff4757'];
+const T = (arr) => arr.map(([min, score], i, a) => ({
+  label: i === a.length - 1 ? 'Crítico' : 'Tier ' + (i + 1),
+  short: i === a.length - 1 ? 'Crít.' : 'T' + (i + 1),
+  min, score,
+  color: i === a.length - 1 ? COLORS[5] : COLORS[i],
+}));
+
+const KPIS = [
+  { key:'awareness',  block:1, name:'Awareness / Pesquisa',     sub:'Pesquisas feitas em sellers ativos', unit:'pesq.', dec:0, ph:'ex: 35', absolute:true,
+    tiers:T([[Infinity,1.5],[-Infinity,0]]) },
+  { key:'agenda',     block:1, name:'Aderência à Agenda',       sub:'% Aderência',                 unit:'%', dec:2, ph:'ex: 58,0',
+    tiers:T([[65.00,1.0],[58.50,0.8],[55.25,0.6],[52.00,0.4],[48.75,0.2],[-Infinity,0]]) },
+  { key:'prod',       block:1, name:'Produtividade',            sub:'Prod. média por dia útil',    unit:'',  dec:2, ph:'ex: 6,2',
+    tiers:T([[6.00,0.5],[-Infinity,0]]) },
+  { key:'churn',      block:2, name:'Net Churn',                sub:'% Net Churn (negativo)',      unit:'%', dec:2, ph:'ex: −2,5', signBtn:true,
+    tiers:T([[-2.00,3.0],[-2.50,2.4],[-3.40,1.8],[-4.50,1.2],[-5.50,0.6],[-Infinity,0]]) },
+  { key:'acionaveis', block:2, name:'Acionáveis Comerciais',    sub:'% Tarefa-revertido',          unit:'%', dec:2, ph:'ex: 100',
+    tiers:T([[100.0,1.0],[-Infinity,0]]) },
+  { key:'tpv',        block:2, name:'% Objetivo de TPV',        sub:'% do objetivo atingido',      unit:'%', dec:2, ph:'ex: 101',
+    tiers:T([[105.0,3.0],[102.0,2.4],[100.0,1.8],[97.0,1.2],[94.0,0.6],[-Infinity,0]]) },
+];
+
+const BONUS_TABLE = [
+  { min:101, max:200, vals:[250, 500, 1000, 2000] },
+  { min:201, max:300, vals:[500, 1000, 1500, 3000] },
+  { min:301, max:400, vals:[750, 1500, 2000, 3500] },
+  { min:401, max:500, vals:[1000, 1500, 2500, 4000] },
+];
+const THRESH = [5.5, 6.0, 6.5, 7.0];
+
+// Awareness: número absoluto de pesquisas, meta definida pela faixa de sellers ativos
+const AWARENESS_META = [
+  { min:101, label:'101 ou mais',  meta:40  },
+  { min:201, label:'201 ou mais',  meta:80  },
+  { min:301, label:'301 ou mais',  meta:120 },
+  { min:401, label:'401 ou mais',  meta:120 },
+  { min:501, label:'501 ou mais',  meta:120 },
+];
+function awarenessMeta(sellers) {
+  if (sellers == null) return null;
+  let m = null;
+  AWARENESS_META.forEach(r => { if (sellers >= r.min) m = r.meta; });
+  return m;
+}
+
+// ───────── UTILIDADES ─────────
+const $ = (id) => document.getElementById(id);
+const fmt = (n, d = 1) => Number(n).toFixed(d).replace('.', ',');
+const brl = (v) => v.toLocaleString('pt-BR', { style:'currency', currency:'BRL', maximumFractionDigits:0 });
+const r2 = (n) => Math.round(n * 100) / 100;
+
+function parseNum(s) {
+  if (s == null) return null;
+  s = String(s).replace(/[%\s]/g, '').replace(/[−–]/g, '-').replace(',', '.');
+  if (s === '' || s === '-' || s === '.') return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function tierIndex(k, v) { return k.tiers.findIndex(t => v >= t.min); }
+function faixaRow(sellers) { return BONUS_TABLE.findIndex(r => sellers >= r.min && sellers <= r.max); }
+function colFor(b2) { const v = r2(b2); return v >= 7 ? 3 : v >= 6.5 ? 2 : v >= 6 ? 1 : v >= 5.5 ? 0 : -1; }
+function bonusFor(sellers, b2) {
+  const row = faixaRow(sellers), col = colFor(b2);
+  return (row < 0 || col < 0) ? 0 : BONUS_TABLE[row].vals[col];
+}
+function fmtMin(k, v) { return (v < 0 ? '−' : '') + fmt(Math.abs(v), k.dec) + (k.unit ? ' ' + k.unit : ''); }
+
+// ───────── MONTAGEM DA TELA ─────────
+function buildCards() {
+  [1, 2].forEach(b => {
+    $('kpis' + b).innerHTML = KPIS.filter(k => k.block === b).map(k => `
+      <div class="kpi" id="card-${k.key}">
+        <div class="head">
+          <div class="title">${k.name}<small id="sub-${k.key}">${k.sub}</small></div>
+          ${k.absolute ? `
+          <div class="fields2">
+            <label>Sellers na carteira<input id="in-awsellers" type="text" inputmode="numeric" placeholder="ex: 250" autocomplete="off"></label>
+            <label>Pesquisas realizadas<input id="in-awareness" data-kpi="awareness" type="text" inputmode="numeric" placeholder="ex: 35" autocomplete="off"></label>
+          </div>` : `<div class="field">
+            ${k.signBtn ? `<button class="sign" type="button" data-sign="${k.key}" aria-label="Trocar sinal">±</button>` : ''}
+            <input id="in-${k.key}" data-kpi="${k.key}" type="text" inputmode="decimal" placeholder="${k.ph}" autocomplete="off">
+            <span class="unit">${k.unit}</span>
+          </div>`}
+        </div>
+        <div class="chips" id="chips-${k.key}"></div>
+        <div class="next" id="next-${k.key}"></div>
+      </div>`).join('');
+  });
+  $('tbodyMeta').innerHTML = AWARENESS_META.map((r, i) => `
+    <tr id="meta-${i}"><td>${r.label}</td><td>${r.meta} pesquisas</td></tr>`).join('');
+  $('tbody').innerHTML = BONUS_TABLE.map((r, i) => `
+    <tr id="row-${i}"><td>${r.min} a ${r.max}</td>${r.vals.map((v, j) => `<td id="c-${i}-${j}">${brl(v)}</td>`).join('')}</tr>`).join('');
+}
+
+// ───────── CÁLCULO + ATUALIZAÇÃO ─────────
+function update() {
+  const res = {};
+  const topSellers = parseNum($('sellers').value);
+  const sellersIn = parseNum($('in-awsellers').value) ?? topSellers;   // sellers da carteira p/ Awareness
+  $('in-awsellers').placeholder = topSellers != null ? String(topSellers) : 'ex: 250';
+  const aMeta = awarenessMeta(sellersIn);
+  const aK = KPIS.find(x => x.key === 'awareness');
+  aK.tiers = T([[aMeta == null ? Infinity : aMeta, 1.5], [-Infinity, 0]]);
+  $('sub-awareness').textContent = aMeta == null
+    ? 'Informe os sellers na carteira (a partir de 101) para ver a meta'
+    : `Com ${sellersIn} sellers, precisa fazer ${aMeta} pesquisas`;
+
+  KPIS.forEach(k => {
+    let v = parseNum($('in-' + k.key).value);
+    if (k.key === 'awareness' && aMeta == null) v = null;
+    const idx = v == null ? null : tierIndex(k, v);
+    res[k.key] = { k, v, idx, pts: idx == null ? 0 : k.tiers[idx].score };
+  });
+  const filled = KPIS.filter(k => res[k.key].v != null).length;
+
+  const b1 = r2(KPIS.filter(k => k.block === 1).reduce((s, k) => s + res[k.key].pts, 0));
+  const b2 = r2(KPIS.filter(k => k.block === 2).reduce((s, k) => s + res[k.key].pts, 0));
+  const eligible = b1 >= 3.0;
+  const sellers = topSellers;
+  const row = sellers == null ? -1 : faixaRow(sellers);
+  const sellersOk = row >= 0;
+  const payBonus = eligible && b2 >= 5.5;
+  const bonus = payBonus && sellersOk ? bonusFor(sellers, b2) : 0;
+
+  // cards por indicador
+  KPIS.forEach(k => {
+    const { v, idx, pts } = res[k.key];
+    $('chips-' + k.key).innerHTML = k.tiers.map((t, i) => `
+      <div class="chip ${i === idx ? 'on' : ''}" style="${i === idx ? `border-color:${t.color};background:${t.color}22` : ''}">
+        <b style="color:${t.color}">${t.label}</b>
+        <span>${t.min === -Infinity ? 'abaixo' : t.min === Infinity ? 'defina sellers' : '≥ ' + fmtMin(k, t.min)}</span>
+        <span>${fmt(t.score)} pts</span>
+      </div>`).join('');
+
+    const nx = $('next-' + k.key);
+    if (v == null) { nx.innerHTML = '<span class="empty">' + (k.absolute && aMeta == null ? 'Informe os sellers na carteira (a partir de 101) para calcular a meta.' : 'Digite o valor para simular.') + '</span>'; return; }
+    if (idx === 0) { nx.innerHTML = `<span class="done">✓ ${k.absolute ? 'Meta batida' : 'Tier máximo'} · ${fmt(pts)} pts. Mantenha esse resultado.</span>`; return; }
+
+    const cur = k.tiers[idx], nxt = k.tiers[idx - 1];
+    const gap = nxt.min - v;
+    const gain = r2(nxt.score - cur.score);
+    const gapTxt = k.absolute ? `fazer mais ${fmt(gap, 0)} pesquisa${Math.ceil(gap) === 1 ? '' : 's'}`
+                 : k.key === 'churn' ? `reduzir a perda em ${fmt(gap, 2)} p.p.`
+                 : k.unit === '%' ? `subir ${fmt(gap, 2)} p.p.` : `subir ${fmt(gap, 2)}`;
+    // barra de progresso até o próximo tier
+    let width;
+    if (idx < k.tiers.length - 1) width = nxt.min - cur.min;
+    else width = idx >= 2 ? k.tiers[idx - 2].min - nxt.min : Math.abs(nxt.min);
+    const pct = Math.max(0, Math.min(100, (1 - gap / width) * 100));
+
+    // impacto no bônus
+    let tag = '';
+    if (k.block === 1 && !eligible && r2(b1 + gain) >= 3) tag = 'Sozinho, isso libera a elegibilidade ao bônus.';
+    else if (k.block === 2 && eligible) {
+      const nb2 = r2(b2 + gain);
+      if (b2 < 5.5 && nb2 >= 5.5) tag = 'Sozinho, isso garante o bônus.';
+      else if (b2 >= 5.5 && sellersOk && colFor(nb2) > colFor(b2)) tag = `Sozinho, isso sobe seu bônus para ${brl(bonusFor(sellers, nb2))}.`;
+    }
+    nx.innerHTML = `
+      ${k.absolute ? 'Meta: ' + fmtMin(k, nxt.min) + '.' : `Próximo: <b style="color:${nxt.color}">${nxt.label}</b> (≥ ${fmtMin(k, nxt.min)}).`} Para chegar lá, precisa ${gapTxt}
+      <b>(+${fmt(gain)} pts)</b>.
+      <div class="track" style="margin-top:8px"><div class="fill" style="width:${pct}%;background:${nxt.color}"></div></div>
+      ${tag ? `<span class="tag">↗ ${tag}</span>` : ''}`;
+  });
+
+  // resumo dos blocos
+  const col1 = b1 >= 3 ? 'var(--accent)' : b1 >= 2 ? 'var(--warn)' : 'var(--danger)';
+  const col2 = b2 >= 6 ? 'var(--accent)' : b2 >= 5.5 ? 'var(--warn)' : 'var(--danger)';
+  $('b1pts').textContent = `${fmt(b1)} / 3,0`; $('b1pts').style.color = col1;
+  $('b2pts').textContent = `${fmt(b2)} / 7,0`; $('b2pts').style.color = col2;
+  $('b1fill').style.width = (b1 / 3 * 100) + '%'; $('b1fill').style.background = col1;
+  $('b2fill').style.width = (b2 / 7 * 100) + '%'; $('b2fill').style.background = col2;
+  $('b1need').textContent = eligible ? '✓ Elegível ao bônus' : `Faltam ${fmt(3 - b1)} pts para ficar elegível`;
+  $('b2need').textContent = b2 >= 5.5 ? '✓ Acima do mínimo de 5,5 pts' : `Faltam ${fmt(5.5 - b2)} pts para o mínimo de 5,5`;
+
+  // faixa de sellers
+  $('faixaTxt').textContent = sellers == null ? '' :
+    sellersOk ? `Faixa ${BONUS_TABLE[row].min} a ${BONUS_TABLE[row].max} sellers` : 'Fora das faixas do bônus (101 a 500)';
+
+  // veredito
+  const st = $('status');
+  const gapB1 = Math.max(0, r2(3 - b1)), gapB2 = Math.max(0, r2(5.5 - b2));
+  const dist = r2(gapB1 + gapB2);
+  let cls, verdict, w1 = '', w2 = '';
+
+  if (filled === 0) {
+    cls = ''; verdict = 'Preencha os indicadores'; w1 = 'Digite os valores abaixo para simular o seu bônus.';
+  } else if (payBonus) {
+    cls = 'ok'; verdict = 'Você está bonificado';
+    if (!sellersOk) {
+      w1 = 'Você atingiu os mínimos. Informe seus sellers ativos para ver o valor do bônus.';
+    } else {
+      w1 = `Com ${fmt(b2)} pts no Bloco 2 você recebe ${brl(bonus)} de bônus.`;
+      const nextCol = colFor(b2) + 1;
+      if (nextCol > 3) w2 = 'Você já está na faixa máxima. Mantenha os resultados até o fechamento.';
+      else {
+        const nb = BONUS_TABLE[row].vals[nextCol];
+        w2 = `Faltam ${fmt(THRESH[nextCol] - b2)} pts no Bloco 2 para chegar a ${brl(nb)} (+${brl(nb - bonus)}).`;
+      }
+    }
+  } else {
+    if (dist <= 1.0) { cls = 'near'; verdict = 'Você está perto'; }
+    else if (dist <= 2.5) { cls = 'mid'; verdict = 'Falta um pouco'; }
+    else { cls = 'far'; verdict = 'Você está longe'; }
+    const parts = [];
+    if (!eligible) parts.push(`${fmt(gapB1)} pts no Bloco 1`);
+    if (b2 < 5.5) parts.push(`${fmt(gapB2)} pts no Bloco 2`);
+    w1 = `Para ganhar o bônus faltam ${parts.join(' e ')}.`;
+    if (!eligible) w2 = 'Sem o Bloco 1 completo, o bônus não é pago, mesmo com o Bloco 2 no máximo.';
+    else if (sellersOk) w2 = `Ao chegar em 5,5 pts no Bloco 2, o bônus inicial na sua faixa é de ${brl(BONUS_TABLE[row].vals[0])}.`;
+    if (filled < 6) w2 += (w2 ? ' ' : '') + `Faltam ${6 - filled} indicador(es) para preencher; eles contam como zero por enquanto.`;
+  }
+  if (payBonus && filled < 6) w2 += ' Há indicadores sem valor; eles contam como zero.';
+  st.className = 'status ' + cls;
+  $('verdict').textContent = verdict;
+  $('why1').textContent = w1;
+  $('why2').textContent = w2;
+  $('bonusVal').textContent = filled === 0 ? '—' : (payBonus && !sellersOk ? '—' : brl(bonus));
+  $('bonusVal').style.color = bonus > 0 ? 'var(--accent)' : 'var(--muted)';
+  $('totalTxt').textContent = bonus > 0 ? `Base ${brl(BASE)} + bônus = ${brl(BASE + bonus)}` : '';
+
+  // tabela
+  AWARENESS_META.forEach((r, i) => {
+    const next = AWARENESS_META[i + 1];
+    const mine = sellersIn != null && sellersIn >= r.min && (!next || sellersIn < next.min);
+    $('meta-' + i).className = mine ? 'mine' : '';
+  });
+  BONUS_TABLE.forEach((r, i) => {
+    $('row-' + i).className = i === row ? 'mine' : '';
+    r.vals.forEach((_, j) => {
+      const c = $(`c-${i}-${j}`); c.className = '';
+      if (i === row) {
+        const curCol = payBonus ? colFor(b2) : -1;
+        if (j === curCol) c.className = 'now';
+        else if (j === curCol + 1) c.className = 'nxt';
+      }
+    });
+  });
+
+  save();
+}
+
+// ───────── PERSISTÊNCIA LOCAL (só neste aparelho) ─────────
+const KEY = 'simulador_bonus_v2';
+function save() {
+  try {
+    const d = { sellers: $('sellers').value, awsellers: $('in-awsellers').value };
+    KPIS.forEach(k => d[k.key] = $('in-' + k.key).value);
+    localStorage.setItem(KEY, JSON.stringify(d));
+  } catch (e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY) || '{}');
+    $('sellers').value = d.sellers || '';
+    $('in-awsellers').value = d.awsellers || '';
+    KPIS.forEach(k => $('in-' + k.key).value = d[k.key] || '');
+  } catch (e) {}
+}
+
+// ───────── EVENTOS ─────────
+buildCards();
+load();
+document.addEventListener('input', (e) => { if (e.target.matches('input')) update(); });
+document.addEventListener('click', (e) => {
+  const s = e.target.closest('[data-sign]');
+  if (s) {
+    const inp = $('in-' + s.dataset.sign);
+    let v = inp.value.trim();
+    inp.value = v.startsWith('-') || v.startsWith('−') ? v.slice(1) : '-' + v;
+    inp.focus(); update();
+  }
+});
+$('btnClear').addEventListener('click', () => {
+  $('sellers').value = ''; $('in-awsellers').value = ''; KPIS.forEach(k => $('in-' + k.key).value = '');
+  update();
+});
+update();
+</script>
+</body>
+</html>
